@@ -57,6 +57,7 @@
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.BROADCAST_STICKY" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CONNECTIVITY_INTERNAL" />
@@ -81,6 +82,7 @@
 
         <meta-data android:name="com.google.android.backup.api_key"
             android:value="AEdPqrEAAAAIBXgtCEKQ6W0PXVnW-ZVia2KmlV2AxsTw3GjAeQ" />
+        <uses-library android:name="com.qualcomm.qti.smartsearch" />
 
         <!-- The entrance point for Phone UI.
              stateAlwaysHidden is set to suppress keyboard show up on
@@ -345,6 +347,11 @@
                   android:directBootAware="true"
                   android:resizeableActivity="true">
         </activity>
+
+        <activity
+            android:name=".MiniMarkActivity"
+            android:excludeFromRecents="true"
+            android:theme="@style/MiniMarkActivityStyle" />
 
         <service android:name="com.android.incallui.InCallServiceImpl"
                  android:permission="android.permission.BIND_INCALL_SERVICE"

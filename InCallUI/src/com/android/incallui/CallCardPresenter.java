@@ -27,6 +27,7 @@ import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
 import android.telecom.Call.Details;
@@ -65,6 +66,7 @@ import com.android.incalluibind.ObjectFactory;
 import java.lang.ref.WeakReference;
 
 import static com.android.contacts.common.compat.CallSdkCompat.Details.PROPERTY_ENTERPRISE_CALL;
+import android.suda.utils.SudaUtils;
 /**
  * Presenter for the Call Card Fragment.
  * <p>
@@ -105,6 +107,8 @@ public class CallCardPresenter extends Presenter<CallCardPresenter.CallCardUi> i
     private boolean mHasShownToast = false;
     private InCallContactInteractions mInCallContactInteractions;
     private boolean mIsFullscreen = false;
+    private static boolean isSupportLanguage;
+    private boolean mIsRecording = false;
 
     public static class ContactLookupCallback implements ContactInfoCacheCallback {
         private final WeakReference<CallCardPresenter> mCallCardPresenter;
@@ -209,6 +213,7 @@ public class CallCardPresenter extends Presenter<CallCardPresenter.CallCardUi> i
         InCallPresenter.getInstance().addDetailsListener(this);
         InCallPresenter.getInstance().addInCallEventListener(this);
         AudioModeProvider.getInstance().addListener(this);
+        isSupportLanguage = SudaUtils.isSupportLanguage(true);
     }
 
     @Override
@@ -332,15 +337,32 @@ public class CallCardPresenter extends Presenter<CallCardPresenter.CallCardUi> i
             maybeClearSessionModificationState(mSecondary);
         }
 
+        CallRecorder recorder = CallRecorder.getInstance();
+        boolean isVideo = VideoUtils.isVideoCall(mPrimary);
+        boolean isEnabled = getPrefs(mContext).getBoolean(mContext.getString(R.string.call_recording_automatically_key), false);
         // Start/stop timers.
         if (isPrimaryCallActive()) {
             Log.d(this, "Starting the calltime timer");
             mPrimary.triggerCalcBaseChronometerTime();
             mCallTimer.start(CALL_TIME_UPDATE_INTERVAL_MS);
+            if (!mIsRecording && isEnabled && !isVideo && CallButtonFragment.getInstance() != null) {
+                mIsRecording = true;
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        CallButtonFragment.getInstance().callRecordClicked(true);
+                    }
+                }, 500);
+            }
         } else {
             Log.d(this, "Canceling the calltime timer");
             mCallTimer.cancel();
             ui.setPrimaryCallElapsedTime(false, 0);
+            if (isEnabled && !isVideo) {
+                if (recorder.isRecording()) {
+                    recorder.finishRecording();
+                }
+            }
         }
 
         // Set the call state
@@ -963,7 +985,9 @@ public class CallCardPresenter extends Presenter<CallCardPresenter.CallCardUi> i
                     number,
                     name,
                     nameIsNumber,
-                    isChildNumberShown || isCallSubjectShown ? null : mPrimaryContactInfo.label,
+                    isChildNumberShown || isCallSubjectShown ? null : isSupportLanguage ? TextUtils.isEmpty(mPrimaryContactInfo.label) ? mPrimaryContactInfo.location :
+                        TextUtils.isEmpty(mPrimaryContactInfo.location) ? mPrimaryContactInfo.label : mPrimaryContactInfo.label + " "
+                            + mPrimaryContactInfo.location : mPrimaryContactInfo.label,
                     mPrimaryContactInfo.photo,
                     mPrimaryContactInfo.isSipCall,
                     isForwarded,
@@ -1154,7 +1178,11 @@ public class CallCardPresenter extends Presenter<CallCardPresenter.CallCardUi> i
                     contactInfo.nameAlternative,
                     mContactsPreferences);
         if (TextUtils.isEmpty(preferredName)) {
-            return contactInfo.location;
+            if (!isSupportLanguage) {
+                return contactInfo.location;
+            } else {
+                return "";
+            }
         }
         return contactInfo.number;
     }
